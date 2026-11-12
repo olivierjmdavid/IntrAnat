@@ -1436,12 +1436,20 @@ class ImageImport(QtWidgets.QDialog):
         # Importing Destrieux atlas to BrainVISA database
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         diFSDestrieux = wdi.findValue(write_filters)
+        # If there is an error while finding where to save the file
+        if not diFSDestrieux:
+            errMsg += ["Cannot import file: " + allFiles['destrieux']['file']]
+            return [False, errMsg]
         # Create the folder if doesn't exist
         createItemDirs(diFSDestrieux)
         # Reslice volume to match T1pre
-        launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',
-                                str(allFiles['destrieux']['file']), '-o', str(diFSDestrieux.fullPath()),
-                                '-rl', str(diT1pre.fullPath()), '-rt', 'nearest', '-nc')
+        try:
+            launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i',
+                                    str(allFiles['destrieux']['file']), '-o', str(diFSDestrieux.fullPath()),
+                                    '-rl', str(diT1pre.fullPath()), '-rt', 'nearest', '-nc')
+        except Exception as e:
+            errMsg += ["Could not launch Freesurfer command for Destrieux: " + str(e)]
+            return [False, errMsg]
         # Convert to AIMS
         ret = subprocess.call(['AimsFileConvert', '-i', str(diFSDestrieux.fullPath()), '-o',
                                str(diFSDestrieux.fullPath()), '-t', 'S16'])
@@ -1482,6 +1490,9 @@ class ImageImport(QtWidgets.QDialog):
         # Importing Destrieux atlas to BrainVISA database
         wdi = WriteDiskItem('FreesurferAtlas', 'NIFTI-1 image')
         di = wdi.findValue({'center': proto, 'acquisition': acq, 'subject': subject})
+        # If there is an error while finding where to save the file
+        if not di:
+            return [False, ["Cannot import file: " + imgPath]]
         # Create the folder if doesn't exist
         createItemDirs(di)
         # Reslice volume to match T1pre
@@ -1489,8 +1500,8 @@ class ImageImport(QtWidgets.QDialog):
             launchFreesurferCommand(self.brainvisaContext, None, 'mri_convert', '-i', imgPath,
                                     '-o', str(di.fullPath()), '-rl', str(diT1pre.fullPath()),
                                     '-rt', 'nearest', '-nc')
-        except:
-            QtGui.QMessageBox.warning(self, "Error", "Could not launch Freesurfer command")
+        except Exception as e:
+            return [False, ["Could not launch Freesurfer command for " + imgName + ": " + str(e)]]
         # Convert to AIMS
         if fileVoxelType is None:
             fileVoxelType = 'S16'  # Default value
